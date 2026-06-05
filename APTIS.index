@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PREPARACIÓN APTIS</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --bg: #f4f7f6;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        .header-info { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; font-weight: bold; position: sticky; top: 0; background: white; z-index: 100; padding-top: 10px;}
+        #timer { color: var(--error); font-size: 1.2rem; }
+        
+        /* Estilos del Menú por bloques */
+        .subject-block { background: #fdfdfd; border: 2px solid #e1e8ed; border-radius: 12px; padding: 25px; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        .subject-title { color: var(--primary); font-size: 1.5rem; margin-top: 0; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 3px solid var(--secondary); text-align: left; }
+        .topics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        
+        .menu-btn { background: var(--secondary); color: white; border: none; padding: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; border-radius: 8px; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .menu-btn:hover { background: #2980b9; transform: translateY(-2px); }
+        .menu-btn.failed { background: #e67e22; width: 100%; margin-top: 10px; font-size: 1.1rem; }
+        .menu-btn.failed:hover { background: #d35400; }
+        .btn-danger { background: var(--error); width: auto; font-size: 0.9rem; padding: 8px 15px; margin-bottom: 15px; }
+        .btn-danger:hover { background: #c0392b; }
+        
+        /* Tarjetas de preguntas */
+        .question-block { background: #fff; border: 1px solid #e1e8ed; border-radius: 10px; padding: 25px; margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .question-text { font-size: 1.3rem; font-weight: 600; margin-bottom: 20px; }
+        
+        .options-container { display: grid; gap: 12px; margin-top: 20px; }
+        .option-btn { padding: 15px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: white; text-align: left; font-size: 1.05rem; }
+        .option-btn:hover:not(:disabled) { background: #f8f9fa; border-color: var(--secondary); }
+        
+        /* Estados de Validación */
+        .correct { background-color: var(--success) !important; color: white; border-color: var(--success); font-weight: bold; }
+        .wrong { background-color: var(--error) !important; color: white; border-color: var(--error); }
+        .translation-box { background-color: #e8f4fd !important; border-left: 5px solid var(--secondary) !important; color: #2c3e50; cursor: default; font-weight: normal; }
+
+        .btn-main { padding: 12px 25px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: 0.3s; width: 100%; margin-top: 25px; }
+        .btn-main:hover { background: #1a252f; }
+        .back-btn { padding: 6px 12px; border: none; border-radius: 6px; background: var(--secondary); color: white; font-weight: bold; cursor: pointer; margin-right: 10px; }
+        
+        .result-panel { background: #fff; border: 2px solid #eee; padding: 30px; border-radius: 12px; text-align: center; margin-top: 30px; display: none; }
+        
+        /* Base genérica para los futuros desplegables */
+        .select-aptis-generic { padding: 10px; border-radius: 6px; border: 2px solid var(--secondary); font-size: 1rem; width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- PANTALLA PRINCIPAL: MENÚ DE SECCIONES -->
+    <div id="login-section">
+        <h1 style="color: var(--primary); text-align: center;">PREPARACIÓN APTIS</h1>
+        <p style="text-align: center;">Selecciona el bloque y la unidad que deseas practicar para comenzar.</p>
+        
+        <div style="text-align: center;">
+            <button class="menu-btn btn-danger" onclick="resetProgress()">🗑️ Borrar mi progreso</button>
+            <button class="menu-btn failed" onclick="startFailedQuestionsTest()">
+                ❌ Repasar mis fallos (<span id="failed-count">0</span>)
+            </button>
+        </div>
+        
+        <div id="subjects-container" style="margin-top: 30px;"></div>
+    </div>
+
+    <!-- PANTALLA DE TEST -->
+    <div id="test-section" style="display:none;">
+        <div class="header-info">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button onclick="goBackToMenu()" class="back-btn">固 Volver</button>
+                <div>📚 <span id="display-topic"></span></div>
+            </div>
+            <div id="timer">⏱️ 00:00</div>
+        </div>
+        
+        <div id="questions-list"></div>
+        
+        <button id="finish-btn" class="btn-main" onclick="finishTest()">Finalizar Test ➔</button>
+    </div>
+
+    <!-- PANTALLA DE RESULTADOS -->
+    <div id="results-section" class="result-panel">
+        <h2 style="color: var(--primary);">¡Test Finalizado! 🎉</h2>
+        <h3 id="score-text" style="font-size: 2.5rem; color: var(--primary); margin: 15px 0;">0/0</h3>
+        <p id="results-detail-text" style="font-size: 1.2rem; margin-bottom: 30px;"></p>
+        <button class="btn-main" onclick="goBackToMenu()">↻ Volver al Menú Principal</button>
+    </div>
+</div>
+
+<script>
+   
+    const misPreguntas = [
+// =========================================================================
+// VOCABULARIO - UNIT 1: HOUSE (TODAS LAS PALABRAS DE LAS IMÁGENES)
+// =========================================================================
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "We need a comfortable _______ for the living room so I can sit and read books.",
+    r: ["armchair", "balcony", "bookshelf", "ceiling"],
+    c: "armchair",
+    e: "Traducción: a) sillón | b) balcón | c) biblioteca/estante | d) techo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Our apartment has a small _______ where we can grow some plants and look at the street.",
+    r: ["bathroom", "bedroom", "balcony", "corridor"],
+    c: "balcony",
+    e: "Traducción: a) baño | b) dormitorio | c) balcón | d) pasillo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "After a long day at work, I love relaxing in a hot filled with water.",
+    r: ["bell", "bin", "bath", "blanket"],
+    c: "bath",
+    e: "Traducción: a) timbre/campana | b) cubo | c) bañera | d) manta"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Don't forget to wash your hands in the _______ before dinner.",
+    r: ["bathroom", "bedroom", "kitchen", "garage"],
+    c: "bathroom",
+    e: "Traducción: a) baño | b) dormitorio | c) cocina | d) cochera"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "The children are sleeping upstairs in their _______.",
+    r: ["livingroom", "hall", "bedroom", "garage"],
+    c: "bedroom",
+    e: "Traducción: a) salón | b) entrada/recibidor | c) dormitorio | d) cochera"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "I didn't hear the front door _______ because I was listening to loud music.",
+    r: ["bulb", "blind", "bell", "cooker"],
+    c: "bell",
+    e: "Traducción: a) bombilla | b) persiana | c) timbre/campana | d) fuegos de la cocina"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Please throw that empty plastic bottle into the rubbish _______.",
+    r: ["chest of drawers", "bin", "cupboard", "chimney"],
+    c: "bin",
+    e: "Traducción: a) cómoda | b) cubo | c) armario de cosas | d) chimenea"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "It's freezing tonight, so you will need a thick _______ on your bed.",
+    r: ["cushion", "curtain", "blanket", "sheet"],
+    c: "blanket",
+    e: "Traducción: a) cojín | b) cortina | c) manta | d) sábana"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "The winter is very harsh; make sure you put extra _______ on the guest beds.",
+    r: ["blankets", "pillows", "rugs", "towels"],
+    c: "blankets",
+    e: "Traducción: a) mantas | b) almohadas | c) alfombras | d) toallas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Pull down the _______ if the sunlight is too bright on your computer screen.",
+    r: ["wall", "mirror", "blind", "plug"],
+    c: "blind",
+    e: "Traducción: a) pared | b) espejo | c) persiana | d) enchufe"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "He has so many novels that he needs a bigger _______ to organize them.",
+    r: ["bookshelf", "wardrobe", "cooker", "fridge"],
+    c: "bookshelf",
+    e: "Traducción: a) biblioteca/estante | b) armario de ropa | c) fuegos de la cocina | d) nevera"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "The light went out because the light _______ in the kitchen burned out.",
+    r: ["plug", "tap", "bulb", "mirror"],
+    c: "bulb",
+    e: "Traducción: a) enchufe | b) grifo | c) bombilla | d) espejo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Look up! There is a beautiful vintage lamp hanging from the _______.",
+    r: ["ground floor", "second floor", "ceiling", "stairs"],
+    c: "ceiling",
+    e: "Traducción: a) planta baja | b) segunda planta | c) techo | d) escaleras"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "It's warm inside the house during winter thanks to the _______.",
+    r: ["central heating", "frying pan", "hairdryer", "microwave"],
+    c: "central heating",
+    e: "Traducción: a) calefacción central | b) sartén | c) secador | d) microondas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "I keep my socks, t-shirts, and underwear inside the _______ in my bedroom.",
+    r: ["cupboard", "chest of drawers", "sink", "dishwasher"],
+    c: "chest of drawers",
+    e: "Traducción: a) armario de cosas | b) cómoda | c) fregadero | d) lavavajillas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Smoke was coming out of the cottage _______ as they lit the fireplace.",
+    r: ["corridor", "chimney", "garage", "garden"],
+    c: "chimney",
+    e: "Traducción: a) pasillo | b) chimenea | c) cochera | d) jardín"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "I spent the whole morning doing the _______ because the house was a mess.",
+    r: ["cleaning", "furniture", "corridor", "downstairs"],
+    c: "cleaning",
+    e: "Traducción: a) limpieza | b) muebles | c) pasillo | d) planta de abajo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Be careful not to touch the hot plates on the electric _______ while preparing food.",
+    r: ["kettle", "cooker", "freezer", "washing machine"],
+    c: "cooker",
+    e: "Traducción: a) tetera | b) fuegos de la cocina | c) congelador | d) lavadora"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Walk straight down this long _______ and the restroom will be the last door on your left.",
+    r: ["balcony", "corridor", "garden", "stairs"],
+    c: "corridor",
+    e: "Traducción: a) balcón | b) pasillo | c) jardín | d) escaleras"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 1",
+    p: "Put the cereal boxes back into the kitchen _______ after you finish breakfast.",
+    r: ["wardrobe", "chest of drawers", "cupboard", "bookshelf"],
+    c: "cupboard",
+    e: "Traducción: a) armario de ropa | b) cómoda | c) armario de cosas | d) biblioteca/estante"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "This sofa is a bit hard; I think it needs a soft _______ behind my back.",
+    r: ["cushion", "blanket", "sheet", "pillow"],
+    c: "cushion",
+    e: "Traducción: a) cojín | b) manta | c) sábana | d) almohada"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "We always gather at the big wooden table in the _______ to have family dinners.",
+    r: ["bathroom", "bedroom", "dining room", "lavatory"],
+    c: "dining room",
+    e: "Traducción: a) baño | b) dormitorio | c) comedor | d) cuarto de baño"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Put the cake on a small ceramic _______ and serve it to the guests.",
+    r: ["dish", "frying pan", "kettle", "sink"],
+    c: "dish",
+    e: "Traducción: a) plato | b) sartén | c) tetera | d) fregadero"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Don't wash the plates by hand; just put them inside the automatic _______.",
+    r: ["washing machine", "dishwasher", "cooker", "microwave"],
+    c: "dishwasher",
+    e: "Traducción: a) lavadora | b) lavavajillas | c) fuegos de la cocina | d) microondas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "The kitchen and the living room are located _______ on the ground floor.",
+    r: ["upstairs", "downstairs", "second floor", "first floor"],
+    c: "downstairs",
+    e: "Traducción: a) planta de arriba | b) planta de abajo | c) segunda planta | d) primera planta"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Instead of a heavy blanket, I prefer using a warm _______ inside a cover during winter.",
+    r: ["duvet", "sheet", "pillow", "towel"],
+    c: "duvet",
+    e: "Traducción: a) edredón | b) sábana | c) almohada | d) toallas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "You don't need to take the stairs; my office is right here on the _______.",
+    r: ["second floor", "first floor", "upstairs", "ground floor"],
+    c: "first floor",
+    e: "Traducción: a) segunda planta | b) primera planta | c) planta de arriba | d) planta baja"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Store the meat and ice cream in the _______ so they stay completely frozen.",
+    r: ["fridge", "freezer", "cupboard", "cooker"],
+    c: "freezer",
+    e: "Traducción: a) nevera/frigorífico | b) congelador | c) armario de cosas | d) fuegos de la cocina"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Please put the milk, tomatoes, and yogurt back into the cold _______.",
+    r: ["freezer", "cupboard", "fridge", "microwave"],
+    c: "fridge",
+    e: "Traducción: a) congelador | b) armario de cosas | c) nevera/frigorífico | d) microondas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "To make an omelet, you need to heat some oil in a good quality _______.",
+    r: ["kettle", "dish", "sink", "frying pan"],
+    c: "frying pan",
+    e: "Traducción: a) tetera | b) plato | c) fregadero | d) sartén"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "When we moved into the new flat, we had to buy new _______ like tables, chairs, and beds.",
+    r: ["furniture", "cleaning", "walls", "plugs"],
+    c: "furniture",
+    e: "Traducción: a) muebles | b) limpieza | c) paredes | d) enchufes"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Keep your car inside the _______ during the night so it doesn't get wet from the rain.",
+    r: ["hall", "balcony", "garage", "corridor"],
+    c: "garage",
+    e: "Traducción: a) entrada/recibidor | b) balcón | c) cochera | d) pasillo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "We have a big backyard _______ with beautiful green grass and colorful flowers.",
+    r: ["ceiling", "garden", "hall", "lavatory"],
+    c: "garden",
+    e: "Traducción: a) techo | b) jardín | c) entrada/recibidor | d) cuarto de baño"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "The main entrance of the building opens directly onto the _______.",
+    r: ["ground floor", "second floor", "stairs", "upstairs"],
+    c: "ground floor",
+    e: "Traducción: a) planta baja | b) segunda planta | c) escaleras | d) planta de arriba"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "My hair is soaking wet; can I borrow your _______ for a couple of minutes?",
+    r: ["washing machine", "microwave", "hairdryer", "kettle"],
+    c: "hairdryer",
+    e: "Traducción: a) lavadora | b) microondas | c) secador | d) tetera"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Leave your wet umbrella and your heavy coat in the _______ before entering the saloon.",
+    r: ["corridor", "hall", "bedroom", "kitchen"],
+    c: "hall",
+    e: "Traducción: a) pasillo | b) entrada/recibidor | c) dormitorio | d) cocina"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Fill the electric _______ with fresh water to prepare a hot cup of English tea.",
+    r: ["frying pan", "sink", "dish", "kettle"],
+    c: "kettle",
+    e: "Traducción: a) sartén | b) fregadero | c) plato | d) tetera"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "The house has a modern _______ equipped with a fridge, a cooker, and a dishwasher.",
+    r: ["dining room", "bathroom", "kitchen", "livingroom"],
+    c: "kitchen",
+    e: "Traducción: a) comedor | b) baño | c) cocina | d) salón"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "The restaurant has a public _______ located next to the main corridor.",
+    r: ["bedroom", "garage", "garden", "lavatory"],
+    c: "lavatory",
+    e: "Traducción: a) dormitorio | b) cochera | c) jardín | d) cuarto de baño"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 2",
+    p: "Our family usually sits together in the spacious _______ to watch television on the sofa.",
+    r: ["hall", "livingroom", "kitchen", "dining room"],
+    c: "livingroom",
+    e: "Traducción: a) entrada/recibidor | b) salón | c) cocina | d) comedor"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "It only takes two minutes to heat up your leftover soup in the _______.",
+    r: ["cooker", "fridge", "microwave", "kettle"],
+    c: "microwave",
+    e: "Traducción: a) fuegos de la cocina | b) nevera | c) microondas | d) tetera"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "She looked at herself in the bathroom _______ to adjust her glasses.",
+    r: ["blind", "bulb", "mirror", "plug"],
+    c: "mirror",
+    e: "Traducción: a) persiana | b) bombilla | c) espejo | d) enchufe"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "I can't sleep without a soft _______ under my head to support my neck.",
+    r: ["cushion", "pillow", "sheet", "blanket"],
+    c: "pillow",
+    e: "Traducción: a) cojín | b) almohada | c) sábana | d) manta"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Insert the phone charger into the electric _______ located on the wall.",
+    r: ["tap", "bulb", "plug", "mirror"],
+    c: "plug",
+    e: "Traducción: a) grifo | b) bombilla | c) enchufe | d) espejo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "We placed a beautiful woolen _______ on the cold wooden floor in front of the fireplace.",
+    r: ["sheet", "pillow", "rug / carpet", "towel"],
+    c: "rug / carpet",
+    e: "Traducción: a) sábana | b) almohada | c) alfombra | d) toalla"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Our flat is located high up on the _______, so we have a great view of the city.",
+    r: ["ground floor", "first floor", "second floor", "downstairs"],
+    c: "second floor",
+    e: "Traducción: a) planta baja | b) primera planta | c) segunda planta | d) planta de abajo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Change the dirty bed _______ and put clean ones on the mattress.",
+    r: ["blankets", "cushions", "sheets", "towels"],
+    c: "sheets",
+    e: "Traducción: a) mantas | b) cojines | c) sábanas | d) toallas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "The dirty dishes are stacking up in the kitchen _______; please wash them.",
+    r: ["bath", "dish", "sink", "lavatory"],
+    c: "sink",
+    e: "Traducción: a) bañera | b) plato | c) fregadero | d) cuarto de baño"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Three people can comfortably sit together on this large leather _______.",
+    r: ["armchair", "sofa", "cushion", "bed"],
+    c: "sofa",
+    e: "Traducción: a) sillón | b) sofá | c) cojín | d) cama"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "The elevator is broken, so we will have to walk up the _______ to the third floor.",
+    r: ["corridor", "balcony", "stairs", "hall"],
+    c: "stairs",
+    e: "Traducción: a) pasillo | b) balcón | c) escaleras | d) entrada/recibidor"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Turn off the water _______ while soaping your face to avoid wasting water.",
+    r: ["plug", "bulb", "tap", "sink"],
+    c: "tap",
+    e: "Traducción: a) enchufe | b) bombilla | c) grifo | d) fregadero"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Please flush the _______ after you use it and wash your hands.",
+    r: ["toilet", "bath", "sink", "dishwasher"],
+    c: "toilet",
+    e: "Traducción: a) baño/inodoro | b) bañera | c) fregadero | d) lavavajillas"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Dry your body with a clean cotton _______ after you get out of the shower.",
+    r: ["sheet", "pillow", "blanket", "towel"],
+    c: "towel",
+    e: "Traducción: a) sábana | b) almohada | c) manta | d) toalla"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "The bedrooms are located _______ on the upper level of the duplex house.",
+    r: ["downstairs", "upstairs", "ground floor", "corridor"],
+    c: "upstairs",
+    e: "Traducción: a) planta de abajo | b) planta de arriba | c) planta baja | d) pasillo"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "We hung a colorful modern painting on the living room _______.",
+    r: ["ceiling", "floor", "wall", "blind"],
+    c: "wall",
+    e: "Traducción: a) techo | b) suelo | c) pared | d) persiana"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Hang your suits, coats, and jackets neatly inside the bedroom _______.",
+    r: ["bookshelf", "wardrobe", "cupboard", "chest of drawers"],
+    c: "wardrobe",
+    e: "Traducción: a) biblioteca/estante | b) armario de ropa | c) armario de cosas | d) cómoda"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "The hot water runs into the ceramic _______ where you wash your face every morning.",
+    r: ["sink", "washbasin", "bath", "toilet"],
+    c: "washbasin",
+    e: "Traducción: a) fregadero (cocina) | b) lavabo (baño) | c) bañera | d) baño/inodoro"
+},
+{
+    m: "VOCABULARIO", t: "Unit 1: House", u: "TEST 3",
+    p: "Put the dirty clothes inside the _______ and add some detergent.",
+    r: ["dishwasher", "microwave", "washing machine", "fridge"],
+    c: "washing machine",
+    e: "Traducción: a) lavavajillas | b) microondas | c) lavadora | d) nevera"
+}
+    ];
+
+    // Variables de Estado
+    let currentQuestions = [];
+    let userAnswers = {};
+    let startTime;
+    let timerInterval;
+    let selectedBlock = "";
+
+    // Construcción inicial del menú dinámico leyendo m, t, u
+    function buildMenu() {
+        const container = document.getElementById('subjects-container');
+        container.innerHTML = "";
+
+        // Agrupación por m (Materia/Bloque) -> t (Tema/Unidad) -> u (Test)
+        let tree = {};
+        misPreguntas.forEach((q, index) => {
+            if (!tree[q.m]) tree[q.m] = {};
+            if (!tree[q.m][q.t]) tree[q.m][q.t] = [];
+            if (!tree[q.m][q.t].includes(q.u)) {
+                tree[q.m][q.t].push(q.u);
+            }
+        });
+
+        for (let m in tree) {
+            let blockDiv = document.createElement('div');
+            blockDiv.className = "subject-block";
+            
+            let title = document.createElement('h2');
+            title.className = "subject-title";
+            title.innerText = m;
+            blockDiv.appendChild(title);
+
+            for (let t in tree[m]) {
+                let topicPara = document.createElement('p');
+                topicPara.innerHTML = `<strong>${t}:</strong>`;
+                blockDiv.appendChild(topicPara);
+
+                let grid = document.createElement('div');
+                grid.className = "topics-grid";
+
+                tree[m][t].forEach(u => {
+                    let btn = document.createElement('button');
+                    btn.className = "menu-btn";
+                    btn.innerText = u;
+                    btn.onclick = () => startTest(m, t, u);
+                    grid.appendChild(btn);
+                });
+                blockDiv.appendChild(grid);
+            }
+            container.appendChild(blockDiv);
+        }
+    }
+
+    // Sistema de cronómetro
+    function updateTimer() {
+        let now = new Date();
+        let diff = now - startTime;
+        let mins = Math.floor(diff / 60000);
+        let secs = Math.floor((diff % 60000) / 1000);
+        document.getElementById('timer').innerText = `⏱️ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // Iniciar Test convencional
+    function startTest(m, t, u) {
+        selectedBlock = `${m} - ${t} - ${u}`;
+        currentQuestions = misPreguntas.filter(q => q.m === m && q.t === t && q.u === u);
+        initLayout();
+    }
+
+    function initLayout() {
+        userAnswers = {};
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('results-section').style.display = 'none';
+        document.getElementById('test-section').style.display = 'block';
+        document.getElementById('display-topic').innerText = selectedBlock;
+
+        startTime = new Date();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+
+        renderQuestions();
+        window.scrollTo(0,0);
+    }
+
+    // Renderizado Dinámico de Preguntas (Distingue test común vs futuro desplegable)
+    function renderQuestions() {
+        const listContainer = document.getElementById('questions-list');
+        listContainer.innerHTML = "";
+
+        currentQuestions.forEach((q, index) => {
+            let qIdx = misPreguntas.indexOf(q); // Índice real absoluto en el banco
+
+            let qBlock = document.createElement('div');
+            qBlock.className = "question-block";
+            qBlock.id = `qblock-${qIdx}`;
+
+            let qText = document.createElement('div');
+            qText.className = "question-text";
+            qText.innerText = `${index + 1}. ${q.p}`;
+            qBlock.appendChild(qText);
+
+            let optionsDiv = document.createElement('div');
+            optionsDiv.className = "options-container";
+
+            // Control Genérico: Si tiene opciones en "r", es opción múltiple habitual
+            if (q.r && q.r.length > 0) {
+                q.r.forEach(option => {
+                    let btn = document.createElement('button');
+                    btn.className = `option-btn opt-${qIdx}`;
+                    btn.id = `btn-${qIdx}-${option}`;
+                    btn.innerText = option;
+                    btn.onclick = () => checkAnswer(qIdx, option, q.c);
+                    optionsDiv.appendChild(btn);
+                });
+
+                // Inyección automática de la opción E (Traducciones fijas)
+                if (q.e) {
+                    let transBox = document.createElement('button');
+                    transBox.className = "option-btn translation-box";
+                    transBox.innerText = `E) ${q.e}`;
+                    transBox.disabled = true;
+                    optionsDiv.appendChild(transBox);
+                }
+            } else {
+                // Caso Genérico: Si "r" viene vacío, monta la estructura base de un desplegable futuro
+                let select = document.createElement('select');
+                select.className = "select-aptis-generic";
+                select.onchange = (e) => checkAnswer(qIdx, e.target.value, q.c);
+                
+                let defaultOpt = document.createElement('option');
+                defaultOpt.value = "";
+                defaultOpt.innerText = "-- Selecciona la palabra correcta (Futuro Desplegable) --";
+                select.appendChild(defaultOpt);
+
+                // Opción de prueba para mantener la reactividad del código genérico
+                let mockOpt = document.createElement('option');
+                mockOpt.value = q.c;
+                mockOpt.innerText = q.c;
+                select.appendChild(mockOpt);
+
+                optionsDiv.appendChild(select);
+            }
+
+            qBlock.appendChild(optionsDiv);
+            listContainer.appendChild(qBlock);
+        });
+    }
+
+    // Validación y asignación de colores en tiempo real
+    function checkAnswer(qIdx, selected, correct) {
+        if (userAnswers[qIdx]) return; // Evita cambiar respuesta una vez pulsado
+        userAnswers[qIdx] = selected;
+
+        let q = misPreguntas[qIdx];
+        
+        if (q.r && q.r.length > 0) {
+            // Bloquear botones restantes
+            document.querySelectorAll(`.opt-${qIdx}`).forEach(btn => btn.disabled = true);
+
+            if (selected === correct) {
+                document.getElementById(`btn-${qIdx}-${selected}`).classList.add('correct');
+            } else {
+                document.getElementById(`btn-${qIdx}-${selected}`).classList.add('wrong');
+                document.getElementById(`btn-${qIdx}-${correct}`).classList.add('correct');
+            }
+        } else {
+            // Validación visual para select futuros
+            let block = document.getElementById(`qblock-${qIdx}`);
+            if (selected === correct) {
+                block.style.borderLeft = "10px solid var(--success)";
+            } else {
+                block.style.borderLeft = "10px solid var(--error)";
+            }
+        }
+    }
+
+    // Finalizar test, evaluar porcentajes y persistir errores
+    function finishTest() {
+        clearInterval(timerInterval);
+        let correctas = 0;
+        let falladas = JSON.parse(localStorage.getItem('repaso_aptis') || '[]');
+
+        currentQuestions.forEach(q => {
+            let idx = misPreguntas.indexOf(q);
+            let ans = userAnswers[idx];
+
+            if (ans === q.c) {
+                correctas++;
+                // Si la acertó, la quitamos de fallos pendientes
+                falladas = falladas.filter(id => id !== idx);
+            } else {
+                // Si erró o quedó vacía, se registra el índice
+                if (!falladas.includes(idx)) falladas.push(idx);
+            }
+        });
+
+        localStorage.setItem('repaso_aptis', JSON.stringify(falladas));
+        updateFailedCount();
+
+        document.getElementById('test-section').style.display = 'none';
+        document.getElementById('results-section').style.display = 'block';
+
+        document.getElementById('score-text').innerText = `${correctas}/${currentQuestions.length}`;
+        let pct = ((correctas / currentQuestions.length) * 100).toFixed(1);
+        document.getElementById('results-detail-text').innerText = `Has obtenido un porcentaje de acierto del ${pct}%. Las preguntas erróneas se han guardado en tu sección de repaso.`;
+    }
+
+    // Lanzar el test especial que solo filtra los fallos
+    function startFailedQuestionsTest() {
+        let falladas = JSON.parse(localStorage.getItem('repaso_aptis') || '[]');
+        if (falladas.length === 0) {
+            alert("¡Gran trabajo! No tienes ningún fallo pendiente de repaso.");
+            return;
+        }
+
+        selectedBlock = "Repaso de mis Errores Guardados";
+        currentQuestions = misPreguntas.filter((_, idx) => falladas.includes(idx));
+        initLayout();
+    }
+
+    function updateFailedCount() {
+        let falladas = JSON.parse(localStorage.getItem('repaso_aptis') || '[]');
+        document.getElementById('failed-count').innerText = falladas.length;
+    }
+
+    function resetProgress() {
+        if (confirm("¿Estás seguro de que deseas borrar todo tu historial de fallos guardados?")) {
+            localStorage.removeItem('repaso_aptis');
+            updateFailedCount();
+        }
+    }
+
+    function goBackToMenu() {
+        clearInterval(timerInterval);
+        document.getElementById('test-section').style.display = 'none';
+        document.getElementById('results-section').style.display = 'none';
+        document.getElementById('login-section').style.display = 'block';
+        updateFailedCount();
+    }
+
+    window.onload = function() {
+        buildMenu();
+        updateFailedCount();
+    };
+</script>
+
+</body>
+</html>
