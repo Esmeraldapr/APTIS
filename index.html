@@ -41,7 +41,22 @@
         /* Estados de Validación */
         .correct { background-color: var(--success) !important; color: white; border-color: var(--success); font-weight: bold; }
         .wrong { background-color: var(--error) !important; color: white; border-color: var(--error); }
-        .translation-box { background-color: #e8f4fd !important; border-left: 5px solid var(--secondary) !important; color: #2c3e50; cursor: default; font-weight: normal; }
+        
+        /* =========================================================================
+           ¡NUEVO SISTEMA ANTES/DESPUÉS PARA LA TRADUCCIÓN OOCULTA!
+           ========================================================================= */
+        .translation-box { 
+            background-color: #e8f4fd !important; 
+            border-left: 5px solid var(--secondary) !important; 
+            color: #2c3e50; 
+            cursor: pointer; 
+            font-weight: normal; 
+            transition: all 0.3s ease;
+        }
+        /* Al pasar el ratón o hacer clic, cambia el diseño y muestra el texto real */
+        .translation-box:hover, .translation-box:active {
+            background-color: #d4e6f1 !important;
+        }
 
         .btn-main { padding: 12px 25px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: 0.3s; width: 100%; margin-top: 25px; }
         .btn-main:hover { background: #1a252f; }
@@ -49,7 +64,6 @@
         
         .result-panel { background: #fff; border: 2px solid #eee; padding: 30px; border-radius: 12px; text-align: center; margin-top: 30px; display: none; }
         
-        /* Base genérica para los futuros desplegables */
         .select-aptis-generic { padding: 10px; border-radius: 6px; border: 2px solid var(--secondary); font-size: 1rem; width: 100%; margin-top: 10px; }
     </style>
 </head>
@@ -75,7 +89,7 @@
     <div id="test-section" style="display:none;">
         <div class="header-info">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <button onclick="goBackToMenu()" class="back-btn">固 Volver</button>
+                <button onclick="goBackToMenu()" class="back-btn">🔙 Volver</button>
                 <div>📚 <span id="display-topic"></span></div>
             </div>
             <div id="timer">⏱️ 00:00</div>
@@ -516,14 +530,13 @@
     let timerInterval;
     let selectedBlock = "";
 
-    // Construcción inicial del menú dinámico leyendo m, t, u
+    // Construcción del menú dinámico leyendo m, t, u
     function buildMenu() {
         const container = document.getElementById('subjects-container');
         container.innerHTML = "";
 
-        // Agrupación por m (Materia/Bloque) -> t (Tema/Unidad) -> u (Test)
         let tree = {};
-        misPreguntas.forEach((q, index) => {
+        misPreguntas.forEach((q) => {
             if (!tree[q.m]) tree[q.m] = {};
             if (!tree[q.m][q.t]) tree[q.m][q.t] = [];
             if (!tree[q.m][q.t].includes(q.u)) {
@@ -561,7 +574,6 @@
         }
     }
 
-    // Sistema de cronómetro
     function updateTimer() {
         let now = new Date();
         let diff = now - startTime;
@@ -570,7 +582,6 @@
         document.getElementById('timer').innerText = `⏱️ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
-    // Iniciar Test convencional
     function startTest(m, t, u) {
         selectedBlock = `${m} - ${t} - ${u}`;
         currentQuestions = misPreguntas.filter(q => q.m === m && q.t === t && q.u === u);
@@ -592,13 +603,13 @@
         window.scrollTo(0,0);
     }
 
-    // Renderizado Dinámico de Preguntas (Distingue test común vs futuro desplegable)
+    // Renderizado Dinámico de Preguntas
     function renderQuestions() {
         const listContainer = document.getElementById('questions-list');
         listContainer.innerHTML = "";
 
         currentQuestions.forEach((q, index) => {
-            let qIdx = misPreguntas.indexOf(q); // Índice real absoluto en el banco
+            let qIdx = misPreguntas.indexOf(q); 
 
             let qBlock = document.createElement('div');
             qBlock.className = "question-block";
@@ -612,7 +623,6 @@
             let optionsDiv = document.createElement('div');
             optionsDiv.className = "options-container";
 
-            // Control Genérico: Si tiene opciones en "r", es opción múltiple habitual
             if (q.r && q.r.length > 0) {
                 q.r.forEach(option => {
                     let btn = document.createElement('button');
@@ -623,16 +633,28 @@
                     optionsDiv.appendChild(btn);
                 });
 
-                // Inyección automática de la opción E (Traducciones fijas)
+                // =========================================================================
+                // NUEVA LÓGICA DE INTERFAZ GESTIONADA POR EVENTOS (Oculta hasta interactuar)
+                // =========================================================================
                 if (q.e) {
                     let transBox = document.createElement('button');
                     transBox.className = "option-btn translation-box";
-                    transBox.innerText = `E) ${q.e}`;
-                    transBox.disabled = true;
+                    transBox.innerText = `👁️ Ver traducción de las opciones`;
+                    
+                    // Al hacer clic o pasar el ratón por encima, se muestra el valor de la clave 'e'
+                    transBox.onclick = function() {
+                        this.innerText = `E) ${q.e}`;
+                    };
+                    transBox.onmouseover = function() {
+                        this.innerText = `E) ${q.e}`;
+                    };
+                    transBox.onmouseout = function() {
+                        this.innerText = `👁️ Ver traducción de las opciones`;
+                    };
+                    
                     optionsDiv.appendChild(transBox);
                 }
             } else {
-                // Caso Genérico: Si "r" viene vacío, monta la estructura base de un desplegable futuro
                 let select = document.createElement('select');
                 select.className = "select-aptis-generic";
                 select.onchange = (e) => checkAnswer(qIdx, e.target.value, q.c);
@@ -642,7 +664,6 @@
                 defaultOpt.innerText = "-- Selecciona la palabra correcta (Futuro Desplegable) --";
                 select.appendChild(defaultOpt);
 
-                // Opción de prueba para mantener la reactividad del código genérico
                 let mockOpt = document.createElement('option');
                 mockOpt.value = q.c;
                 mockOpt.innerText = q.c;
@@ -656,15 +677,13 @@
         });
     }
 
-    // Validación y asignación de colores en tiempo real
     function checkAnswer(qIdx, selected, correct) {
-        if (userAnswers[qIdx]) return; // Evita cambiar respuesta una vez pulsado
+        if (userAnswers[qIdx]) return; 
         userAnswers[qIdx] = selected;
 
         let q = misPreguntas[qIdx];
         
         if (q.r && q.r.length > 0) {
-            // Bloquear botones restantes
             document.querySelectorAll(`.opt-${qIdx}`).forEach(btn => btn.disabled = true);
 
             if (selected === correct) {
@@ -674,7 +693,6 @@
                 document.getElementById(`btn-${qIdx}-${correct}`).classList.add('correct');
             }
         } else {
-            // Validación visual para select futuros
             let block = document.getElementById(`qblock-${qIdx}`);
             if (selected === correct) {
                 block.style.borderLeft = "10px solid var(--success)";
@@ -684,7 +702,6 @@
         }
     }
 
-    // Finalizar test, evaluar porcentajes y persistir errores
     function finishTest() {
         clearInterval(timerInterval);
         let correctas = 0;
@@ -696,10 +713,8 @@
 
             if (ans === q.c) {
                 correctas++;
-                // Si la acertó, la quitamos de fallos pendientes
                 falladas = falladas.filter(id => id !== idx);
             } else {
-                // Si erró o quedó vacía, se registra el índice
                 if (!falladas.includes(idx)) falladas.push(idx);
             }
         });
@@ -715,7 +730,6 @@
         document.getElementById('results-detail-text').innerText = `Has obtenido un porcentaje de acierto del ${pct}%. Las preguntas erróneas se han guardado en tu sección de repaso.`;
     }
 
-    // Lanzar el test especial que solo filtra los fallos
     function startFailedQuestionsTest() {
         let falladas = JSON.parse(localStorage.getItem('repaso_aptis') || '[]');
         if (falladas.length === 0) {
